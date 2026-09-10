@@ -4,7 +4,7 @@ metadata:
   name: app-sa
   namespace: prod
   annotations:
-    iam.gke.io/gcp-service-account: gke-worm-sa@PROJECT_ID.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: gke-worm-sa@internal-507903.iam.gserviceaccount.com
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,13 +21,22 @@ spec:
       labels:
         app: worm-app
       annotations:
-        # Aktifkan GCS FUSE Sidecar Auto-Injection
         gke-gcsfuse/volumes: "true"
     spec:
       serviceAccountName: app-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
       containers:
       - name: app
-        image: nginx:alpine
+        image: nginxinc/nginx-unprivileged:alpine
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
         volumeMounts:
         - name: worm-storage
           mountPath: /var/log/app-archive
@@ -36,5 +45,5 @@ spec:
         csi:
           driver: gcsfuse.csi.storage.gke.io
           volumeAttributes:
-            bucketName: my-worm-bucket-data
-            mountOptions: "implicit-dirs"
+            bucketName: my-worm-bucket-data-internal-507903
+            mountOptions: "implicit-dirs,file-mode=644,dir-mode=755"
