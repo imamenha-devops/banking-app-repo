@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-sa
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: gke-worm-sa@PROJECT_ID.iam.gserviceaccount.com
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worm-app
+  namespace: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worm-app
+  template:
+    metadata:
+      labels:
+        app: worm-app
+      annotations:
+        # Aktifkan GCS FUSE Sidecar Auto-Injection
+        gke-gcsfuse/volumes: "true"
+    spec:
+      serviceAccountName: app-sa
+      containers:
+      - name: app
+        image: nginx:alpine
+        volumeMounts:
+        - name: worm-storage
+          mountPath: /var/log/app-archive
+      volumes:
+      - name: worm-storage
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          volumeAttributes:
+            bucketName: my-worm-bucket-data
+            mountOptions: "implicit-dirs"
